@@ -40,27 +40,21 @@ def handle_missing_values(df):
 
 # FONCTION 3 — handle_outliers
 
-
 def handle_outliers(df, target_col='survival_status'):
     """
     Détecte et traite les valeurs aberrantes sur les colonnes numériques
     en utilisant la méthode IQR (Interquartile Range).
-
-    Pourquoi IQR ?
-    - Robuste : ne dépend pas de la moyenne ni de l'écart-type
-    - Standard en médecine pour détecter les valeurs extrêmes
-    - Ne suppose pas une distribution normale des données
-
-    Méthode : clipping (winsorization)
-    - Les valeurs < Q1 - 1.5*IQR sont remplacées par cette borne basse
-    - Les valeurs > Q3 + 1.5*IQR sont remplacées par cette borne haute
-    - On ne supprime PAS les lignes : en médecine, chaque patient compte
-
-    La colonne cible (survival_status) est exclue du traitement.
+    
+    On exclut :
+    - La colonne cible (survival_status)
+    - Les colonnes binaires (0/1) car IQR n'a pas de sens sur elles
     """
-    # Sélection des colonnes numériques, en excluant la target
     num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    num_cols = [col for col in num_cols if col != target_col]
+    
+    # Exclure la target ET les colonnes binaires
+    num_cols = [col for col in num_cols 
+                if col != target_col 
+                and df[col].nunique() > 2]  
 
     outliers_count = {}
 
@@ -72,12 +66,10 @@ def handle_outliers(df, target_col='survival_status'):
         lower = Q1 - 1.5 * IQR
         upper = Q3 + 1.5 * IQR
 
-        # Compter les outliers avant clipping (pour le rapport)
         n_outliers = ((df[col] < lower) | (df[col] > upper)).sum()
         if n_outliers > 0:
             outliers_count[col] = n_outliers
 
-        # Remplacement par les bornes (clipping)
         df[col] = df[col].clip(lower, upper)
 
     print(f' Outliers traités sur {len(num_cols)} colonnes numériques.')
